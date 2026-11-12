@@ -37,9 +37,11 @@ The app opens with a login screen. Pick any demo account (no password required):
 | User | Role | Access |
 |---|---|---|
 | **Admin** | Administrator | Full access to all modules |
-| **Pharmacist** | Pharmacist | POS, inventory, purchases, reports (no finance/staff) |
-| **Cashier** | Cashier | POS, sales, customers, returns |
-| **Stock Keeper** | Stock Keeper | Inventory, receiving, transfers, expiry |
+| **Pharmacist** | Pharmacist | POS, sales, medicines, purchasing, reports |
+| **Cashier** | Cashier | **POS & sales only** — no dashboard, reports or inventory |
+| **Stock Manager** | Inventory Manager | **Inventory management only** — no POS, dashboard or reports |
+
+Access is enforced at page level: blocked modules show an "Access restricted" screen even when opened by direct URL.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   FileOutput, ArrowLeftRight, CalendarClock, Truck, Users, Undo2, PackageMinus, Wallet,
   Landmark, BarChart3, UserCog, Settings, Cross, LogOut, Menu, Bell, Search, ChevronRight,
   ChevronDown, Store, AlertTriangle, Hourglass, Banknote, RefreshCw, Lightbulb,
+  ShieldAlert, ArrowLeft,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { NAV, canAccess, roleLabel, type NavItem } from "./nav";
@@ -340,6 +341,40 @@ function LiveClock() {
   return <span className="tabular-nums">· {now}</span>;
 }
 
+function AccessDenied({ item }: { item: NavItem }) {
+  const user = useStore((s) => s.currentUser);
+  const router = useRouter();
+  const accessible = NAV.filter((n) => canAccess(n, user?.role) && !n.children);
+  const fallback =
+    accessible.find((n) => n.href === "/") ??
+    accessible.find((n) => n.href === "/pos") ??
+    accessible[0];
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-card">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
+          <ShieldAlert className="h-7 w-7 text-rose-500" />
+        </div>
+        <h1 className="mt-4 text-lg font-bold text-slate-900">Access restricted</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Your role (<span className="font-semibold text-slate-700">{user ? roleLabel(user.role) : "—"}</span>) does not
+          have permission to open <span className="font-semibold text-slate-700">{item.label}</span>.
+        </p>
+        <p className="mt-1 text-xs text-slate-400">Ask the administrator if you need access to this module.</p>
+        {fallback && (
+          <button
+            onClick={() => router.push(fallback.href)}
+            className="mt-6 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-navy-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-navy-800"
+          >
+            <ArrowLeft className="h-4 w-4" /> Go to {fallback.label}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UserMenu() {
   const user = useStore((s) => s.currentUser);
   const [open, setOpen] = useState(false);
@@ -427,6 +462,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="animate-pulse text-sm text-white/50">Redirecting to sign-in…</div>
       </div>
     );
+  }
+
+  // Role-based access control — enforced even for direct URL entry, not just hidden links.
+  const navItem = NAV.find((n) =>
+    n.href === pathname || n.children?.some((c) => c.href.split("?")[0] === pathname));
+  if (navItem && !canAccess(navItem, user.role)) {
+    return <AccessDenied item={navItem} />;
   }
 
   return (

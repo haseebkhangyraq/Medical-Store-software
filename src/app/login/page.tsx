@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 
 const ROLE_META: Record<string, { desc: string; tone: string }> = {
   administrator: { desc: "Full access to every module", tone: "from-violet-500 to-purple-700" },
-  pharmacist: { desc: "POS, medicines, reports, returns", tone: "from-emerald-500 to-teal-700" },
-  cashier: { desc: "POS, sales, customers", tone: "from-sky-500 to-blue-700" },
-  inventory_manager: { desc: "Inventory, purchases, transfers", tone: "from-amber-500 to-orange-700" },
+  pharmacist: { desc: "POS, sales, medicines, purchasing, reports", tone: "from-emerald-500 to-teal-700" },
+  cashier: { desc: "POS & sales only — no dashboard, reports or inventory", tone: "from-sky-500 to-blue-700" },
+  inventory_manager: { desc: "Inventory management only — no POS, dashboard or reports", tone: "from-amber-500 to-orange-700" },
 };
 
 export default function LoginPage() {
