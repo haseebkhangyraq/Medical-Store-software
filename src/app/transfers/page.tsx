@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeftRight, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Plus, Trash2, Printer } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, Button, Input, Select, Modal, Field, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, Textarea } from "@/components/ui";
+import { printModuleReport } from "@/components/module-print";
 import { toast } from "@/components/toast";
 import { formatDate, cn } from "@/lib/utils";
 import { liveBatches, sellableStock } from "@/lib/stock";
@@ -26,6 +27,30 @@ export default function TransfersPage() {
   const [pick, setPick] = useState("");
 
   const units = transfers.reduce((s, t) => s + t.items.reduce((x, i) => x + i.quantity, 0), 0);
+
+  function printSummary() {
+    printModuleReport({
+      title: "Stock Transfers",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Transfers", String(transfers.length)],
+        ["Units Moved", String(units)],
+        ["Locations", String(settings.storageLocations.length)],
+      ],
+      sections: [{
+        heading: "Transfer Log",
+        columns: ["Transfer #", "Date", "From", "To", "Authorized By", "Items", "Units"],
+        right: [5, 6],
+        rows: transfers.slice(0, 60).map((t) => [
+          t.transferNo, formatDate(t.date.slice(0, 10)), t.fromLocation, t.toLocation,
+          t.authorizedBy, String(t.items.length), String(t.items.reduce((s, i) => s + i.quantity, 0)),
+        ]),
+      }],
+      note: `Showing ${Math.min(transfers.length, 60)} of ${transfers.length} transfers.`,
+    });
+  }
 
   function addLine(medicineId: string) {
     const med = medicines.find((m) => m.id === medicineId);
@@ -52,7 +77,10 @@ export default function TransfersPage() {
   return (
     <div>
       <PageHeader title="Stock Transfers" subtitle="Move stock between branches and storage locations"
-        actions={<Button size="sm" onClick={() => { setAuthorizedBy(store.currentUser?.name ?? ""); setOpen(true); }}><Plus className="h-4 w-4" /> New Transfer</Button>} />
+        actions={<>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <Button size="sm" onClick={() => { setAuthorizedBy(store.currentUser?.name ?? ""); setOpen(true); }}><Plus className="h-4 w-4" /> New Transfer</Button>
+        </>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard label="Transfers" value={String(transfers.length)} icon={<ArrowLeftRight className="h-5 w-5" />} tone="navy" />

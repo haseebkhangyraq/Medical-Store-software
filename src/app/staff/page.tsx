@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ShieldCheck, ShieldOff, UserCog, History, KeyRound, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, ShieldOff, UserCog, History, KeyRound, Info, Printer } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, Button, Input, Select, Badge, Modal, Field, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, ConfirmDialog, Alert, Tabs } from "@/components/ui";
+import { printModuleReport } from "@/components/module-print";
 import { toast } from "@/components/toast";
 import { formatDateTime, formatDate, cn } from "@/lib/utils";
 import { roleLabel } from "@/components/nav";
@@ -40,10 +41,40 @@ export default function StaffPage() {
     setFormOpen(false);
   }
 
+  function printSummary() {
+    printModuleReport({
+      title: "Staff & Access",
+      pharmacyName: store.settings.pharmacyName,
+      address: store.settings.address,
+      branchName: store.settings.branchName,
+      kpis: [
+        ["Users", String(users.length)],
+        ["Active", String(users.filter((u) => u.active).length)],
+        ["Activity Entries", String(activity.length)],
+      ],
+      sections: [
+        {
+          heading: "User Accounts",
+          columns: ["Name", "Username", "Role", "Phone", "Status"],
+          rows: users.map((u) => [u.name, u.username, roleLabel(u.role), u.phone || "—", u.active ? "Active" : "Disabled"]),
+        },
+        {
+          heading: "Recent Activity (latest 30)",
+          columns: ["Date", "User", "Action", "Detail"],
+          rows: activity.slice(0, 30).map((a) => [formatDateTime(a.date), a.userName, a.action, a.detail]),
+        },
+      ],
+      note: "Demo authentication — integrate a real auth provider before production use.",
+    });
+  }
+
   return (
     <div>
       <PageHeader title="Staff Management" subtitle="Demo role-based access — not production-grade authentication"
-        actions={<Button size="sm" onClick={() => { setEditing(null); setForm({ name: "", username: "", role: "cashier", phone: "", active: true }); setFormOpen(true); }}><Plus className="h-4 w-4" /> Add User</Button>} />
+        actions={<>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <Button size="sm" onClick={() => { setEditing(null); setForm({ name: "", username: "", role: "cashier", phone: "", active: true }); setFormOpen(true); }}><Plus className="h-4 w-4" /> Add User</Button>
+        </>} />
 
       <div className="mb-4">
         <Alert tone="blue" title="Demonstration authentication">

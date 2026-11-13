@@ -8,6 +8,7 @@ import { Card, Button, Input, Badge, Modal, Field, EmptyState, PageHeader, Table
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, cn } from "@/lib/utils";
 import { printReceivingDoc } from "@/components/prints";
+import { printModuleReport } from "@/components/module-print";
 import type { Purchase } from "@/lib/types";
 
 interface RecvLine { itemId: string; quantity: number; batchNo: string; mfgDate: string; expiryDate: string; unitCost: number }
@@ -62,6 +63,31 @@ function ReceivingInner() {
 
   const draftValue = lines.reduce((s, l) => s + l.quantity * l.unitCost, 0);
 
+  function printSummary() {
+    printModuleReport({
+      title: "Goods Receiving",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Pending Orders", String(pending.length)],
+        ["GRNs Issued", String(receivings.length)],
+        ["Received Value", fmt(receivings.reduce((s, r) => s + r.total, 0))],
+        ["Units Received", String(receivings.reduce((s, r) => s + r.items.reduce((x, i) => x + i.quantity, 0), 0))],
+      ],
+      sections: [{
+        heading: "Receiving History (GRNs)",
+        columns: ["GRN #", "Date", "Supplier", "Items", "Units", "Value"],
+        right: [3, 4, 5],
+        rows: receivings.slice(0, 60).map((r) => [
+          r.receiveNo, formatDate(r.date.slice(0, 10)), r.supplierName ?? "—",
+          String(r.items.length), String(r.items.reduce((x, i) => x + i.quantity, 0)), fmt(r.total),
+        ]),
+      }],
+      note: `Showing ${Math.min(receivings.length, 60)} of ${receivings.length} GRNs.`,
+    });
+  }
+
   function submitReceive() {
     if (!active) return;
     const res = store.receivePurchase(active.id, lines, receivedBy || "Store");
@@ -75,7 +101,8 @@ function ReceivingInner() {
 
   return (
     <div>
-      <PageHeader title="Receiving" subtitle="Goods receiving — verify quantities, confirm batches, update inventory" />
+      <PageHeader title="Receiving" subtitle="Goods receiving — verify quantities, confirm batches, update inventory"
+        actions={<Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Pending Orders" value={String(pending.length)} icon={<PackageCheck className="h-5 w-5" />} tone="amber" />

@@ -3,13 +3,14 @@
 import { useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Plus, Pencil, Trash2, Upload, Download, Pill, Boxes, History, Layers, Eye,
+  Plus, Pencil, Trash2, Upload, Download, Pill, Boxes, History, Layers, Eye, Printer,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, Button, Input, Select, Textarea, Badge, Modal, Field, EmptyState, PageHeader, SearchInput, TableWrap, Th, Td, ConfirmDialog, Tabs, StatCard } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, downloadCSV, cn, daysUntil } from "@/lib/utils";
 import { sellableStock, totalStock, stockValue, liveBatches, expiryStatus } from "@/lib/stock";
+import { printModuleReport } from "@/components/module-print";
 import type { Medicine, MedicineCategory, Batch } from "@/lib/types";
 
 const CATEGORIES: MedicineCategory[] = ["Tablet", "Syrup", "Capsule", "Injection", "Ointment", "Drops", "Suspension", "Sachet", "Inhaler", "Suppository"];
@@ -102,6 +103,31 @@ function MedicinesInner() {
     value: medicines.reduce((s, m) => s + stockValue(m), 0),
     low: medicines.filter((m) => sellableStock(m, today) <= Math.max(m.minStockLevel, settings.lowStockThreshold)).length,
   }), [medicines, settings.lowStockThreshold, today]);
+
+  function printSummary() {
+    printModuleReport({
+      title: "Medicines Catalogue",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Total Medicines", String(totals.count)],
+        ["Stock Value", fmt(totals.value)],
+        ["Low Stock", String(totals.low)],
+        ["Rx-Only", String(medicines.filter((m) => m.prescriptionRequired).length)],
+      ],
+      sections: [{
+        heading: "Catalogue",
+        columns: ["Medicine", "Generic", "Category", "Mfr", "Retail", "Stock", "Min"],
+        right: [4, 5, 6],
+        rows: rows.slice(0, 80).map((m) => [
+          m.name, m.genericName, m.category, m.manufacturer,
+          fmt(m.retailPrice), String(sellableStock(m, today)), String(m.minStockLevel),
+        ]),
+      }],
+      note: `Showing ${Math.min(rows.length, 80)} of ${rows.length} medicines. Use CSV export for the full catalogue.`,
+    });
+  }
 
   function openAdd() {
     setEditing(null);
@@ -202,6 +228,7 @@ function MedicinesInner() {
               <input type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files?.[0] && importCSV(e.target.files[0])} />
               <Button variant="outline" size="sm" onClick={(e) => (e.currentTarget.previousElementSibling as HTMLInputElement)?.click()}><Upload className="h-4 w-4" /> Import</Button>
             </label>
+            <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
             <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4" /> Add Medicine</Button>
           </>

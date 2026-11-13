@@ -11,6 +11,7 @@ import { toast } from "@/components/toast";
 import { formatCurrency, cn } from "@/lib/utils";
 import { sellableStock, liveBatches } from "@/lib/stock";
 import { printReceipt, printInvoice } from "@/components/prints";
+import { printModuleReport } from "@/components/module-print";
 import type { PaymentMethod, Sale, SplitPaymentPart, Customer } from "@/lib/types";
 
 const METHODS: { id: PaymentMethod; label: string; icon: React.ReactNode }[] = [
@@ -34,6 +35,7 @@ export default function POSPage() {
   const store = useStore();
   const medicines = useStore((s) => s.medicines);
   const customers = useStore((s) => s.customers);
+  const sales = useStore((s) => s.sales);
   const settings = useStore((s) => s.settings);
   const createSale = useStore((s) => s.createSale);
   const addCustomer = useStore((s) => s.addCustomer);
@@ -193,6 +195,38 @@ export default function POSPage() {
 
   const cur = settings.currency;
   const fmt = (n: number) => formatCurrency(n, cur);
+
+  function printDaySummary() {
+    const todays = sales.filter((x) => x.date.slice(0, 10) === today);
+    const revenue = todays.reduce((s, x) => s + x.total, 0);
+    const profit = todays.reduce((s, x) =>
+      s + x.items.reduce((a, it) => a + (it.quantity * it.unitPrice - it.discount - it.quantity * it.costPrice), 0), 0);
+    const units = todays.reduce((s, x) => s + x.items.reduce((a, it) => a + it.quantity, 0), 0);
+    printModuleReport({
+      title: "POS Day Summary",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Invoices Today", String(todays.length)],
+        ["Revenue Today", fmt(revenue)],
+        ["Gross Profit Today", fmt(Math.round(profit))],
+        ["Units Sold Today", String(units)],
+      ],
+      sections: [{
+        heading: "Today's Invoices",
+        columns: ["Invoice", "Time", "Customer", "Items", "Total", "Paid", "Method"],
+        right: [3, 4, 5],
+        rows: todays.slice(0, 80).map((x) => [
+          x.invoiceNo, x.date.slice(11, 16), x.customerName, String(x.items.length),
+          fmt(x.total), fmt(x.paidAmount), x.paymentMethod.replace("_", " "),
+        ]),
+      }],
+      note: todays.length
+        ? `Showing ${Math.min(todays.length, 80)} of ${todays.length} invoices for ${today}.`
+        : `No invoices recorded yet for ${today}.`,
+    });
+  }
 
   // ── product browser ──
   const productBrowser = (
@@ -452,7 +486,10 @@ export default function POSPage() {
           <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">POS — New Sale</h1>
           <p className="text-[13px] text-slate-500">FEFO batch deduction · Barcode & generic search · {settings.currency} billing</p>
         </div>
-        <Badge tone="green">DEMO</Badge>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={printDaySummary}><Printer className="h-4 w-4" /> <span className="hidden sm:inline">Day Summary</span></Button>
+          <Badge tone="green">DEMO</Badge>
+        </div>
       </div>
 
       {/* Mobile tabs */}

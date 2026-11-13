@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import Link from "next/link";
 import {
   Pill, PackageSearch, ShoppingCart, TrendingUp, Banknote, AlertTriangle, Hourglass,
-  CalendarX2, Truck, Users, ArrowRight, Receipt, FileInput, Activity, Wallet,
+  CalendarX2, Truck, Users, ArrowRight, Receipt, FileInput, Activity, Wallet, Printer,
 } from "lucide-react";
 import { useStore, getSupplierBalance } from "@/lib/store";
+import { printModuleReport } from "@/components/module-print";
 import { Card, CardHeader, StatCard, Badge, Button, EmptyState, Skeleton, TableWrap, Th, Td, Tabs } from "@/components/ui";
 import { SalesAreaChart, CompareBarChart, CategoryPie } from "@/components/charts";
 import { formatCurrency, formatDate, formatDateTime, todayISO, daysUntil, MONTHS, formatCompact } from "@/lib/utils";
@@ -150,6 +150,45 @@ export default function DashboardPage() {
   const currency = s.settings.currency;
   const fmt = (n: number) => formatCurrency(n, currency);
 
+  function printSummary() {
+    printModuleReport({
+      title: "Dashboard Summary",
+      pharmacyName: s.settings.pharmacyName,
+      address: s.settings.address,
+      branchName: s.settings.branchName,
+      kpis: [
+        ["Medicines", String(d.medCount)],
+        ["Inventory Value", fmt(d.invValue)],
+        ["Today's Sales", fmt(d.todaySalesTotal)],
+        ["Today's Profit", fmt(d.todayProfit)],
+        ["Today's Purchases", fmt(d.todayPurchasesTotal)],
+        ["Payables", fmt(d.payables)],
+        ["Low Stock", String(d.lowStock)],
+        ["Expiring Batches", String(d.nearExpiry + d.expired)],
+      ],
+      sections: [
+        {
+          heading: "Low Stock Alerts",
+          columns: ["Medicine", "Stock", "Min Level", "Status"],
+          right: [1, 2],
+          rows: d.lowStockItems.map((m) => [m.name, String(sellableStock(m)), String(m.minStockLevel), sellableStock(m) === 0 ? "Out of stock" : "Low"]),
+        },
+        {
+          heading: "Expiring Batches",
+          columns: ["Medicine", "Batch", "Expiry", "Qty", "Days Left"],
+          right: [3, 4],
+          rows: d.expiryAlerts.map((e) => [e.med.name, e.batch.batchNo, formatDate(e.batch.expiryDate.slice(0, 10)), String(e.batch.quantity), e.days < 0 ? "Expired" : String(e.days)]),
+        },
+        {
+          heading: "Recent Invoices",
+          columns: ["Invoice", "Date", "Customer", "Total", "Status"],
+          right: [3],
+          rows: d.recentSales.map((sale) => [sale.invoiceNo, formatDate(sale.date.slice(0, 10)), sale.customerName, fmt(sale.total), sale.status.replace("_", " ")]),
+        },
+      ],
+    });
+  }
+
   if (!mounted) {
     return (
       <div className="space-y-4">
@@ -168,8 +207,9 @@ export default function DashboardPage() {
           <p className="text-[13px] text-slate-500">Business overview for {formatDate(todayISO())} · {s.currentUser?.name}</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/pos"><Button size="sm"><ShoppingCart className="h-4 w-4" /> New Sale</Button></Link>
-          <Link href="/purchases"><Button variant="outline" size="sm"><FileInput className="h-4 w-4" /> New Purchase</Button></Link>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <a href="/pos"><Button size="sm"><ShoppingCart className="h-4 w-4" /> New Sale</Button></a>
+          <a href="/purchases"><Button variant="outline" size="sm"><FileInput className="h-4 w-4" /> New Purchase</Button></a>
         </div>
       </div>
 
@@ -237,7 +277,7 @@ export default function DashboardPage() {
       {/* Alerts + recents */}
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Low Stock Alerts" subtitle="At or below minimum level" action={<Link href="/inventory" className="text-xs font-medium text-navy-600 hover:underline">View all</Link>} />
+          <CardHeader title="Low Stock Alerts" subtitle="At or below minimum level" action={<a href="/inventory" className="text-xs font-medium text-navy-600 hover:underline">View all</a>} />
           <TableWrap>
             <table className="w-full">
               <thead><tr><Th>Medicine</Th><Th>Stock</Th><Th>Min</Th><Th>Status</Th></tr></thead>
@@ -260,7 +300,7 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Expiry Alerts" subtitle={`Batches expiring within ${s.settings.expiryWarnDays} days or expired`} action={<Link href="/expiry" className="text-xs font-medium text-navy-600 hover:underline">Expiry module</Link>} />
+          <CardHeader title="Expiry Alerts" subtitle={`Batches expiring within ${s.settings.expiryWarnDays} days or expired`} action={<a href="/expiry" className="text-xs font-medium text-navy-600 hover:underline">Expiry module</a>} />
           <TableWrap>
             <table className="w-full">
               <thead><tr><Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th><Th>Status</Th></tr></thead>
@@ -282,7 +322,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-1">
-          <CardHeader title="Recent Sales" action={<Link href="/sales" className="text-xs font-medium text-navy-600 hover:underline">All sales <ArrowRight className="inline h-3 w-3" /></Link>} />
+          <CardHeader title="Recent Sales" action={<a href="/sales" className="text-xs font-medium text-navy-600 hover:underline">All sales <ArrowRight className="inline h-3 w-3" /></a>} />
           <div className="space-y-1 px-2.5 pb-3 pt-2">
             {d.recentSales.map((sale) => (
               <div key={sale.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50">
@@ -302,7 +342,7 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="xl:col-span-1">
-          <CardHeader title="Recent Purchases" action={<Link href="/purchases" className="text-xs font-medium text-navy-600 hover:underline">All purchases <ArrowRight className="inline h-3 w-3" /></Link>} />
+          <CardHeader title="Recent Purchases" action={<a href="/purchases" className="text-xs font-medium text-navy-600 hover:underline">All purchases <ArrowRight className="inline h-3 w-3" /></a>} />
           <div className="space-y-1 px-2.5 pb-3 pt-2">
             {d.recentPurchases.map((p) => (
               <div key={p.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50">

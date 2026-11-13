@@ -7,6 +7,7 @@ import { Card, Button, Input, Select, Badge, Modal, Field, EmptyState, PageHeade
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, cn } from "@/lib/utils";
 import { printPurchaseReturnNote } from "@/components/prints";
+import { printModuleReport } from "@/components/module-print";
 import type { Purchase } from "@/lib/types";
 
 interface Line { itemId: string; medicineId: string; batchId: string; batchNo: string; available: number; quantity: number }
@@ -72,9 +73,34 @@ export default function PurchaseReturnsPage() {
 
   const startOver = () => { setStep("select"); setPurchase(null); setLines([]); setDone(null); };
 
+  function printSummary() {
+    printModuleReport({
+      title: "Purchase Returns",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Purchase Returns", String(returns.length)],
+        ["Total Supplier Credit", fmt(returns.reduce((s, r) => s + r.totalRefund, 0))],
+        ["Units Returned", String(returns.reduce((s, r) => s + r.items.reduce((x, i) => x + i.quantity, 0), 0))],
+      ],
+      sections: [{
+        heading: "Return Notes",
+        columns: ["Return #", "Date", "Supplier", "Items", "Units", "Credit"],
+        right: [3, 4, 5],
+        rows: returns.slice(0, 60).map((r) => [
+          r.returnNo, formatDate(r.date.slice(0, 10)), r.supplierName,
+          String(r.items.length), String(r.items.reduce((x, i) => x + i.quantity, 0)), fmt(r.totalRefund),
+        ]),
+      }],
+      note: `Showing ${Math.min(returns.length, 60)} of ${returns.length} returns.`,
+    });
+  }
+
   return (
     <div>
-      <PageHeader title="Purchase Returns" subtitle="Return stock to suppliers — stock decreases, supplier balance is credited" />
+      <PageHeader title="Purchase Returns" subtitle="Return stock to suppliers — stock decreases, supplier balance is credited"
+        actions={<Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard label="Purchase Returns" value={String(returns.length)} icon={<PackageMinus className="h-5 w-5" />} tone="navy" />

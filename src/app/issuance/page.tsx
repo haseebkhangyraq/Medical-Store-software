@@ -8,6 +8,7 @@ import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, cn } from "@/lib/utils";
 import { liveBatches, sellableStock } from "@/lib/stock";
 import { printIssuanceVoucher } from "@/components/prints";
+import { printModuleReport } from "@/components/module-print";
 import type { Issuance } from "@/lib/types";
 
 const REASONS: Record<Issuance["reason"], string> = {
@@ -44,6 +45,30 @@ export default function IssuancePage() {
     expired: issuances.filter((i) => i.reason === "expired").reduce((s, i) => s + i.items.reduce((x, it) => x + it.quantity, 0), 0),
   }), [issuances]);
 
+  function printSummary() {
+    printModuleReport({
+      title: "Stock Issuance",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Issue Vouchers", String(stats.count)],
+        ["Total Value Issued", fmt(stats.value)],
+        ["Expired Units Removed", String(stats.expired)],
+      ],
+      sections: [{
+        heading: "Issuance Vouchers",
+        columns: ["Voucher #", "Date", "Reason", "Destination", "Items", "Value"],
+        right: [4, 5],
+        rows: issuances.slice(0, 60).map((i) => [
+          i.voucherNo, formatDate(i.date.slice(0, 10)), REASONS[i.reason],
+          i.destination, String(i.items.length), fmt(i.totalValue),
+        ]),
+      }],
+      note: `Showing ${Math.min(issuances.length, 60)} of ${issuances.length} vouchers.`,
+    });
+  }
+
   const totalValue = lines.reduce((s, l) => {
     const med = medicines.find((m) => m.id === l.medicineId);
     const batch = med?.batches.find((b) => b.id === l.batchId);
@@ -76,7 +101,10 @@ export default function IssuancePage() {
   return (
     <div>
       <PageHeader title="Stock Issuance" subtitle="Issue stock for internal use, damage, expiry, samples — every issue is ledgered"
-        actions={<Button size="sm" onClick={() => { setAuthorizedBy(store.currentUser?.name ?? ""); setOpen(true); }}><Plus className="h-4 w-4" /> New Issuance</Button>} />
+        actions={<>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <Button size="sm" onClick={() => { setAuthorizedBy(store.currentUser?.name ?? ""); setOpen(true); }}><Plus className="h-4 w-4" /> New Issuance</Button>
+        </>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard label="Issue Vouchers" value={String(stats.count)} icon={<FileOutput className="h-5 w-5" />} tone="navy" />

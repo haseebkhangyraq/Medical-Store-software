@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Truck, Banknote, Download, Printer, Receipt, Landmark } from "lucide-react";
 import { useStore, getSupplierBalance } from "@/lib/store";
+import { printModuleReport } from "@/components/module-print";
 import { Card, Button, Input, Select, Textarea, Badge, Modal, Field, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, ConfirmDialog, SearchInput, Tabs } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, downloadCSV, cn, printArea } from "@/lib/utils";
@@ -43,6 +44,31 @@ export default function SuppliersPage() {
   }, [suppliers, q]);
 
   const totalPayable = useMemo(() => [...balances.values()].reduce((s, v) => s + Math.max(0, v), 0), [balances]);
+
+  function printSummary() {
+    printModuleReport({
+      title: "Suppliers Report",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Suppliers", String(suppliers.length)],
+        ["Total Payable", fmt(totalPayable)],
+        ["Payments Made", fmt(payments.reduce((s, p) => s + p.amount, 0))],
+        ["Purchase Returns", fmt(returns.reduce((s, r) => s + r.totalRefund, 0))],
+      ],
+      sections: [{
+        heading: "Supplier Directory & Balances",
+        columns: ["Supplier", "Contact", "Phone", "Opening", "Balance (Payable)"],
+        right: [3, 4],
+        rows: rows.slice(0, 60).map((s) => [
+          s.name, s.contactPerson, s.phone,
+          fmt(s.openingBalance), fmt(balances.get(s.id) ?? 0),
+        ]),
+      }],
+      note: `Showing ${Math.min(rows.length, 60)} of ${rows.length} suppliers.`,
+    });
+  }
 
   function saveForm() {
     if (!form.name.trim()) { toast.error("Supplier name required"); return; }
@@ -92,7 +118,10 @@ export default function SuppliersPage() {
   return (
     <div>
       <PageHeader title="Suppliers" subtitle="Distributors, ledgers and outstanding payables"
-        actions={<Button size="sm" onClick={() => { setEditing(null); setForm({ ...empty }); setFormOpen(true); }}><Plus className="h-4 w-4" /> Add Supplier</Button>} />
+        actions={<>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <Button size="sm" onClick={() => { setEditing(null); setForm({ ...empty }); setFormOpen(true); }}><Plus className="h-4 w-4" /> Add Supplier</Button>
+        </>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard label="Suppliers" value={String(suppliers.length)} icon={<Truck className="h-5 w-5" />} tone="navy" />

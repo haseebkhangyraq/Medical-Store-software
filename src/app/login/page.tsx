@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Cross, ShieldCheck, ArrowRight, Info } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -19,21 +18,20 @@ export default function LoginPage() {
   const settings = useStore((s) => s.settings);
   const login = useStore((s) => s.login);
   const currentUser = useStore((s) => s.currentUser);
-  const router = useRouter();
   const [selected, setSelected] = useState<string>("admin");
   const [error, setError] = useState("");
 
   // Already signed in (e.g. session restored from IndexedDB)? Go straight in.
   useEffect(() => {
-    if (currentUser) router.replace("/");
-  }, [currentUser, router]);
+    if (currentUser) window.location.replace("/");
+  }, [currentUser]);
 
   const user = users.find((u) => u.username === selected);
 
   function signIn() {
     if (!user) return;
     if (login(user.username)) {
-      router.push("/");
+      window.location.assign("/");
     } else {
       setError("This account is inactive.");
     }

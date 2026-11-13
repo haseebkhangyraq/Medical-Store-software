@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Trash2, Eye, PackageCheck, XCircle, Download, FileSpreadsheet, Truck } from "lucide-react";
+import { Plus, Trash2, Eye, PackageCheck, XCircle, Download, FileSpreadsheet, Truck, Printer } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, Button, Input, Select, Badge, Modal, Field, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, ConfirmDialog, SearchInput } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, downloadCSV, cn } from "@/lib/utils";
 import { printReceivingDoc } from "@/components/prints";
+import { printModuleReport } from "@/components/module-print";
 import type { Purchase, PurchaseItem } from "@/lib/types";
 
 interface DraftItem {
@@ -29,7 +29,6 @@ export default function PurchasesPage() {
   const medicines = useStore((s) => s.medicines);
   const receivings = useStore((s) => s.receivings);
   const settings = useStore((s) => s.settings);
-  const router = useRouter();
 
   const [q, setQ] = useState("");
   const [statusF, setStatusF] = useState("all");
@@ -62,6 +61,30 @@ export default function PurchasesPage() {
       return s + Math.max(0, receivedValue - p.paidAmount);
     }, 0),
   }), [purchases]);
+
+  function printSummary() {
+    printModuleReport({
+      title: "Purchase Report",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Purchase Orders", String(purchases.length)],
+        ["Total Purchased", fmt(stats.total)],
+        ["Awaiting Receiving", String(stats.pending)],
+        ["Unpaid (received)", fmt(stats.outstanding)],
+      ],
+      sections: [{
+        heading: "Purchase Orders",
+        columns: ["Ref #", "Date", "Supplier", "Items", "Total", "Status"],
+        right: [4],
+        rows: rows.slice(0, 60).map((p) => [
+          p.refNo, formatDate(p.date.slice(0, 10)), p.supplierName, String(p.items.length),
+          fmt(p.total), p.status.replace("_", " "),
+        ]),
+      }],
+    });
+  }
 
   const draftSubtotal = items.reduce((s, it) => s + it.orderedQty * it.unitCost, 0);
   const draftTotal = Math.max(0, draftSubtotal - discount + tax);
@@ -105,6 +128,7 @@ export default function PurchasesPage() {
       <PageHeader title="Purchases" subtitle="Purchase orders, pricing and supplier procurement"
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
             <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={() => { setSupplierId(suppliers[0]?.id ?? ""); setCreateOpen(true); }}><Plus className="h-4 w-4" /> New Purchase</Button>
           </>
@@ -113,7 +137,7 @@ export default function PurchasesPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Purchase Orders" value={String(purchases.length)} icon={<FileSpreadsheet className="h-5 w-5" />} tone="navy" />
         <StatCard label="Total Purchased" value={fmt(stats.total)} icon={<Truck className="h-5 w-5" />} tone="amber" />
-        <StatCard label="Pending Receiving" value={String(stats.pending)} icon={<PackageCheck className="h-5 w-5" />} tone="blue" onClick={() => router.push("/receiving")} />
+        <StatCard label="Pending Receiving" value={String(stats.pending)} icon={<PackageCheck className="h-5 w-5" />} tone="blue" onClick={() => window.location.assign("/receiving")} />
         <StatCard label="Unpaid (received)" value={fmt(stats.outstanding)} icon={<XCircle className="h-5 w-5" />} tone="red" />
       </div>
 
@@ -154,7 +178,7 @@ export default function PurchasesPage() {
                         <Button size="icon" variant="ghost" title="Details" onClick={() => setDetail(p)}><Eye className="h-4 w-4" /></Button>
                         {(p.status === "ordered" || p.status === "partially_received") && (
                           <>
-                            <Button size="sm" variant="primary" onClick={() => router.push(`/receiving?po=${p.id}`)}><PackageCheck className="h-3.5 w-3.5" /> Receive</Button>
+                            <Button size="sm" variant="primary" onClick={() => window.location.assign(`/receiving?po=${p.id}`)}><PackageCheck className="h-3.5 w-3.5" /> Receive</Button>
                             <Button size="icon" variant="ghost" className="text-rose-500 hover:bg-rose-50" title="Cancel order" onClick={() => setCancelTarget(p)}><XCircle className="h-4 w-4" /></Button>
                           </>
                         )}
@@ -292,7 +316,7 @@ export default function PurchasesPage() {
               </div>
             )}
             {(detailPur.status === "ordered" || detailPur.status === "partially_received") && (
-              <Button className="w-full" onClick={() => { setDetail(null); router.push(`/receiving?po=${detailPur.id}`); }}>
+              <Button className="w-full" onClick={() => { setDetail(null); window.location.assign(`/receiving?po=${detailPur.id}`); }}>
                 <PackageCheck className="h-4 w-4" /> Receive Goods
               </Button>
             )}

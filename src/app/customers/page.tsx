@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Users, Banknote, Printer, Receipt, Phone, Download } from "lucide-react";
 import { useStore, getCustomerBalance } from "@/lib/store";
+import { printModuleReport } from "@/components/module-print";
 import { Card, Button, Input, Select, Badge, Modal, Field, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, ConfirmDialog, SearchInput, Tabs } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, downloadCSV, cn, printArea } from "@/lib/utils";
@@ -45,6 +46,30 @@ export default function CustomersPage() {
   }, [customers, q, typeF]);
 
   const totalReceivable = useMemo(() => [...balances.values()].reduce((s, v) => s + Math.max(0, v), 0), [balances]);
+
+  function printSummary() {
+    printModuleReport({
+      title: "Customers Report",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Customers", String(customers.length)],
+        ["Total Receivable", fmt(totalReceivable)],
+        ["Payments Received", fmt(payments.reduce((s, p) => s + p.amount, 0))],
+        ["Credit Customers", String(customers.filter((c) => c.type !== "regular").length)],
+      ],
+      sections: [{
+        heading: "Customer Directory & Balances",
+        columns: ["Customer", "Phone", "Type", "Credit Limit", "Balance (Receivable)"],
+        right: [3, 4],
+        rows: rows.slice(0, 60).map((c) => [
+          c.name, c.phone, c.type, fmt(c.creditLimit), fmt(balances.get(c.id) ?? 0),
+        ]),
+      }],
+      note: `Showing ${Math.min(rows.length, 60)} of ${rows.length} customers.`,
+    });
+  }
 
   function saveForm() {
     if (!form.name.trim()) { toast.error("Name required"); return; }
@@ -125,6 +150,7 @@ export default function CustomersPage() {
       <PageHeader title="Customers" subtitle="Profiles, purchase history and receivables"
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
             <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={() => { setEditing(null); setForm({ ...empty }); setFormOpen(true); }}><Plus className="h-4 w-4" /> Add Customer</Button>
           </>

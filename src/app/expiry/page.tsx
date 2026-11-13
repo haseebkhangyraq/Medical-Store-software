@@ -7,6 +7,7 @@ import { Card, Button, Badge, EmptyState, PageHeader, TableWrap, Th, Td, StatCar
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, downloadCSV, printArea, daysUntil } from "@/lib/utils";
 import { sellableStock, expiryStatus, totalStock } from "@/lib/stock";
+import { printModuleReport } from "@/components/module-print";
 
 export default function ExpiryPage() {
   const store = useStore();
@@ -50,6 +51,33 @@ export default function ExpiryPage() {
     store.removeExpiredBatch(removeTarget.medId, removeTarget.batchId, reason);
     toast.success("Expired stock removed", `${removeTarget.name} — batch ${removeTarget.batchNo} (${removeTarget.qty} units)`);
     setRemoveTarget(null);
+  }
+
+  function printSummary() {
+    printModuleReport({
+      title: "Expiry & Stock Control",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Expired Batches", String(stats.expired.length)],
+        ["Expiring ≤ 30 Days", String(stats.d30.length)],
+        ["31–60 Days", String(stats.d60.length)],
+        ["61–90 Days", String(stats.d90.length)],
+      ],
+      sections: [{
+        heading: "Expiry Watchlist",
+        columns: ["Medicine", "Batch", "Qty", "Expiry", "Days", "Value at Cost"],
+        right: [2, 5],
+        rows: stats.expired.concat(stats.d30, stats.d60, stats.d90).slice(0, 80).map((x) => [
+          x.med.name, x.batch.batchNo, x.batch.quantity,
+          formatDate(x.batch.expiryDate.slice(0, 10)),
+          x.days < 0 ? "Expired" : `${x.days} days`,
+          fmt(Math.round(x.batch.quantity * x.batch.purchasePrice)),
+        ]),
+      }],
+      note: "FEFO protection active — expired batches are never sellable at POS.",
+    });
   }
 
   function printReport() {
@@ -102,8 +130,8 @@ export default function ExpiryPage() {
       <PageHeader title="Expiry & Stock Control" subtitle="FEFO-protected: expired batches are never sellable"
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
             <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4" /> CSV</Button>
-            <Button variant="outline" size="sm" onClick={printReport}><Printer className="h-4 w-4" /> Print Report</Button>
           </>
         } />
 

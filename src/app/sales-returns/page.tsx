@@ -7,6 +7,7 @@ import { Card, Button, Input, Select, Badge, Modal, Field, EmptyState, PageHeade
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, cn } from "@/lib/utils";
 import { printSalesReturnNote } from "@/components/prints";
+import { printModuleReport } from "@/components/module-print";
 import type { Sale } from "@/lib/types";
 
 interface RetLine { saleItemId: string; quantity: number; restock: boolean; maxQty: number; already: number }
@@ -68,9 +69,35 @@ export default function SalesReturnsPage() {
 
   const startOver = () => { setStep("search"); setSale(null); setLines([]); setQ(""); setDone(null); };
 
+  function printSummary() {
+    printModuleReport({
+      title: "Sales Returns",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Returns", String(returns.length)],
+        ["Total Refunded", fmt(returns.reduce((s, r) => s + r.totalRefund, 0))],
+        ["Units Restocked", String(returns.reduce((s, r) => s + r.items.filter((i) => i.restock).reduce((x, i) => x + i.quantity, 0), 0))],
+      ],
+      sections: [{
+        heading: "Return Notes",
+        columns: ["Return #", "Date", "Invoice", "Customer", "Items", "Refund", "Restock"],
+        right: [4, 5],
+        rows: returns.slice(0, 60).map((r) => [
+          r.returnNo, formatDate(r.date.slice(0, 10)), r.invoiceNo, r.customerName,
+          String(r.items.length), fmt(r.totalRefund),
+          r.items.every((i) => i.restock) ? "Full" : r.items.some((i) => i.restock) ? "Partial" : "None",
+        ]),
+      }],
+      note: `Showing ${Math.min(returns.length, 60)} of ${returns.length} returns.`,
+    });
+  }
+
   return (
     <div>
-      <PageHeader title="Sales Returns" subtitle="Search invoice → select items → refund & restock eligible batches" />
+      <PageHeader title="Sales Returns" subtitle="Search invoice → select items → refund & restock eligible batches"
+        actions={<Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard label="Returns" value={String(returns.length)} icon={<Undo2 className="h-5 w-5" />} tone="navy" />

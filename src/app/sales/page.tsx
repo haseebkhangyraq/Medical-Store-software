@@ -7,7 +7,9 @@ import { useStore } from "@/lib/store";
 import { Card, Button, Badge, Modal, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, SearchInput, Select, Input } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, formatDateTime, downloadCSV, cn } from "@/lib/utils";
-import { printReceipt, printInvoice } from "@/components/prints";import type { Sale } from "@/lib/types";
+import { printReceipt, printInvoice } from "@/components/prints";
+import { printModuleReport } from "@/components/module-print";
+import type { Sale } from "@/lib/types";
 
 function saleProfit(s: Sale) {
   return Math.round(s.items.reduce((sum, it) => sum + (it.quantity * it.unitPrice - it.discount - it.quantity * it.costPrice), 0));
@@ -56,16 +58,45 @@ function SalesInner() {
   const focusId = searchParams.get("sale");
   const openSale = useMemo(() => (focusId ? sales.find((s) => s.id === focusId) : null), [focusId, sales]);
 
+  function printSummary() {
+    printModuleReport({
+      title: "Sales Report",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Invoices Today", String(stats.todayCount)],
+        ["Today's Revenue", fmt(stats.todayTotal)],
+        ["Today's Gross Profit", fmt(stats.todayProfit)],
+        ["Lifetime Revenue", fmt(stats.allTotal)],
+      ],
+      sections: [{
+        heading: "Invoices",
+        columns: ["Invoice", "Date", "Customer", "Items", "Total", "Paid", "Balance", "Status"],
+        right: [4, 5, 6],
+        rows: rows.slice(0, 60).map((s) => [
+          s.invoiceNo, formatDate(s.date.slice(0, 10)), s.customerName, s.items.length,
+          fmt(s.total), fmt(s.paidAmount), fmt(s.total - s.paidAmount),
+          s.status.replace("_", " "),
+        ]),
+      }],
+      note: `Showing ${Math.min(rows.length, 60)} of ${rows.length} invoices. Use CSV export for the complete list.`,
+    });
+  }
+
   return (
     <div>
       <PageHeader title="Sales History" subtitle="Invoices, payments and reprints"
-        actions={<Button variant="outline" size="sm" onClick={() => {
-          downloadCSV("sales", rows.map((s) => ({
-            Invoice: s.invoiceNo, Date: s.date, Customer: s.customerName, Items: s.items.length,
-            Subtotal: s.subtotal, Discount: s.itemDiscountTotal + s.invoiceDiscount, Tax: s.taxTotal,
-            Total: s.total, Paid: s.paidAmount, Method: s.paymentMethod, Status: s.status, Cashier: s.cashierName,
-          })));
-        }}><Download className="h-4 w-4" /> Export</Button>} />
+        actions={<>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <Button variant="outline" size="sm" onClick={() => {
+            downloadCSV("sales", rows.map((s) => ({
+              Invoice: s.invoiceNo, Date: s.date, Customer: s.customerName, Items: s.items.length,
+              Subtotal: s.subtotal, Discount: s.itemDiscountTotal + s.invoiceDiscount, Tax: s.taxTotal,
+              Total: s.total, Paid: s.paidAmount, Method: s.paymentMethod, Status: s.status, Cashier: s.cashierName,
+            })));
+          }}><Download className="h-4 w-4" /> Export</Button>
+        </>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Invoices Today" value={String(stats.todayCount)} icon={<Receipt className="h-5 w-5" />} tone="green" />

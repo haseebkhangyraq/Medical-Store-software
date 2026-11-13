@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Settings as SettingsIcon, Save, DatabaseZap, Download, Upload, Store, Palette, ReceiptText, Calculator, RefreshCcw, Trash2, Check } from "lucide-react";
+import { Settings as SettingsIcon, Save, DatabaseZap, Download, Upload, Store, Palette, ReceiptText, Calculator, RefreshCcw, Trash2, Check, Printer } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardHeader, Button, Input, Select, Badge, Field, PageHeader, Textarea, StatCard, ConfirmDialog, Alert, Tabs } from "@/components/ui";
+import { printModuleReport } from "@/components/module-print";
 import { toast } from "@/components/toast";
 import { formatCurrency } from "@/lib/utils";
 import type { PharmacySettings } from "@/lib/types";
@@ -69,10 +70,45 @@ export default function SettingsPage() {
     reader.readAsText(file);
   }
 
+  function printSummary() {
+    printModuleReport({
+      title: "System Configuration",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Currency", `${settings.currency} (${settings.currencyCode})`],
+        ["Low Stock Threshold", String(settings.lowStockThreshold)],
+        ["Expiry Warning", `${settings.expiryWarnDays} days`],
+        ["Storage Locations", String(settings.storageLocations.length)],
+      ],
+      sections: [{
+        heading: "Store Profile & Billing Configuration",
+        columns: ["Setting", "Value"],
+        rows: [
+          ["Pharmacy name", settings.pharmacyName],
+          ["Branch", settings.branchName || "—"],
+          ["Address", settings.address || "—"],
+          ["Email", settings.email || "—"],
+          ["License no.", settings.licenseNo || "—"],
+          ["Default tax rate", `${settings.defaultTaxRate}%`],
+          ["Receipt style", settings.receiptWidth === "thermal80" ? "Thermal 80mm" : "A4"],
+          ["Low stock threshold", String(settings.lowStockThreshold)],
+          ["Expiry warning (days)", String(settings.expiryWarnDays)],
+          ["Storage locations", settings.storageLocations.join(", ")],
+        ],
+      }],
+      note: "Configuration snapshot — changes are saved through the Settings page.",
+    });
+  }
+
   return (
     <div>
       <PageHeader title="Settings" subtitle="Pharmacy profile, billing configuration, data tools"
-        actions={<Button size="sm" onClick={save} variant={saved ? "success" : "primary"}>{saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} {saved ? "Saved" : "Save Changes"}</Button>} />
+        actions={<>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <Button size="sm" onClick={save} variant={saved ? "success" : "primary"}>{saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} {saved ? "Saved" : "Save Changes"}</Button>
+        </>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Pharmacy" value={settings.pharmacyName} icon={<Store className="h-5 w-5" />} tone="navy" />

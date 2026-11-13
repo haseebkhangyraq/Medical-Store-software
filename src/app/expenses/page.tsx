@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet, Plus, Trash2, Download, Home, Zap, Users, Truck, Wrench, Megaphone, MoreHorizontal } from "lucide-react";
+import { Wallet, Plus, Trash2, Download, Home, Zap, Users, Truck, Wrench, Megaphone, MoreHorizontal, Printer } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, Button, Input, Select, Badge, Modal, Field, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, SearchInput, ConfirmDialog } from "@/components/ui";
+import { printModuleReport } from "@/components/module-print";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, downloadCSV, todayISO, MONTHS } from "@/lib/utils";
 import { CategoryPie } from "@/components/charts";
@@ -54,6 +55,40 @@ export default function ExpensesPage() {
     return [...map.entries()].map(([name, value]) => ({ name: CATS.find((c) => c.id === name)?.label ?? name, value }));
   }, [thisMonth]);
 
+  function printSummary() {
+    printModuleReport({
+      title: "Operating Expenses",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["This Month", fmt(thisMonth.reduce((s, e) => s + e.amount, 0))],
+        ["Lifetime", fmt(expenses.reduce((s, e) => s + e.amount, 0))],
+        ["Entries", String(expenses.length)],
+        ["This Month Entries", String(thisMonth.length)],
+      ],
+      sections: [
+        {
+          heading: "By Category (this month)",
+          columns: ["Category", "Amount"],
+          right: [1],
+          rows: byCategory.sort((a, b) => b.value - a.value).map((c) => [c.name, fmt(c.value)]),
+        },
+        {
+          heading: "Expense Entries (latest 60)",
+          columns: ["No", "Date", "Category", "Description", "Method", "Amount"],
+          right: [5],
+          rows: rows.slice(0, 60).map((e) => [
+            e.expenseNo, formatDate(e.date.slice(0, 10)),
+            CATS.find((c) => c.id === e.category)?.label ?? e.category,
+            e.description, e.method, fmt(e.amount),
+          ]),
+        },
+      ],
+      note: `Showing ${Math.min(rows.length, 60)} of ${rows.length} entries.`,
+    });
+  }
+
   function save() {
     if (form.amount <= 0) { toast.error("Amount must be greater than 0"); return; }
     if (!form.description.trim()) { toast.error("Description required"); return; }
@@ -68,6 +103,7 @@ export default function ExpensesPage() {
       <PageHeader title="Operating Expenses" subtitle="Rent, utilities, salaries and other operating costs"
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
             <Button variant="outline" size="sm" onClick={() => downloadCSV("expenses", rows.map((e) => ({ No: e.expenseNo, Date: e.date, Category: e.category, Amount: e.amount, Description: e.description, Method: e.method })))}><Download className="h-4 w-4" /> Export</Button>
             <Button size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Add Expense</Button>
           </>

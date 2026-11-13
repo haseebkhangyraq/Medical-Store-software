@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { Card, CardHeader, Button, Badge, EmptyState, PageHeader, TableWrap, Th, Td, StatCard, Tabs, Select, Alert } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, downloadCSV, printArea, todayISO, MONTHS } from "@/lib/utils";
+import { printModuleReport } from "@/components/module-print";
 
 export default function FinancePage() {
   const store = useStore();
@@ -73,6 +74,45 @@ export default function FinancePage() {
     downloadCSV("cash-ledger", entries.map((e) => ({ Date: e.date, Direction: e.direction, Category: e.category, Ref: e.refNo, Description: e.description, Method: e.method, Amount: e.amount })));
   }
 
+  function printSummary() {
+    printModuleReport({
+      title: "Financial Summary",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Cash In (today)", fmt(cashInToday)],
+        ["Cash Out (today)", fmt(cashOutToday)],
+        ["Receivables", fmt(receivables.total)],
+        ["Payables", fmt(payables.total)],
+      ],
+      sections: [
+        {
+          heading: `Profit & Loss — ${MONTHS[Number(thisMonth.slice(5, 7)) - 1]} ${thisMonth.slice(0, 4)}`,
+          columns: ["Line Item", "Amount"],
+          right: [1],
+          rows: [
+            ["Revenue (net of returns)", fmt(pnl.revenue)],
+            ["Cost of Goods Sold", `−${fmt(pnl.cogs)}`],
+            [`Gross Profit (${pnl.grossMargin}%)`, fmt(pnl.grossProfit)],
+            ["Operating Expenses", `−${fmt(pnl.expenses)}`],
+            ["Net Profit (estimate)", fmt(pnl.netProfit)],
+          ],
+        },
+        {
+          heading: "Cash Ledger (latest 40 entries)",
+          columns: ["Date", "Direction", "Category", "Description", "Amount"],
+          right: [4],
+          rows: entries.slice(0, 40).map((e) => [
+            formatDate(e.date), e.direction === "in" ? "In" : "Out", e.category, e.description,
+            `${e.direction === "in" ? "+" : "−"}${fmt(e.amount)}`,
+          ]),
+        },
+      ],
+      note: "Gross profit uses actual batch purchase cost (FEFO). Net profit excludes taxes, depreciation and drawings.",
+    });
+  }
+
   function printPL() {
     printArea(`<div class="invoice"><div class="inv-head"><div><div class="inv-logo">${settings.pharmacyName}</div></div>
       <div style="text-align:right"><div style="font-size:16px;font-weight:700">PROFIT & LOSS — ${MONTHS[Number(thisMonth.slice(5, 7)) - 1]} ${thisMonth.slice(0, 4)}</div>
@@ -93,8 +133,8 @@ export default function FinancePage() {
       <PageHeader title="Financial Accounts" subtitle="Cash register, P&L, receivables and payables"
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
             <Button variant="outline" size="sm" onClick={exportLedger}><Download className="h-4 w-4" /> Ledger CSV</Button>
-            <Button variant="outline" size="sm" onClick={printPL}><Printer className="h-4 w-4" /> P&L Print</Button>
           </>
         } />
 

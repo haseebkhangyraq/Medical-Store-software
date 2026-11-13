@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Boxes, Layers, Download, TrendingUp, TrendingDown, Activity, AlertTriangle, PackageOpen, PackageX, ArrowUpDown } from "lucide-react";
+import { Boxes, Layers, Download, TrendingUp, TrendingDown, Activity, AlertTriangle, PackageOpen, PackageX, ArrowUpDown, Printer } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, Button, Badge, EmptyState, PageHeader, SearchInput, TableWrap, Th, Td, StatCard, Tabs, Select } from "@/components/ui";
+import { printModuleReport } from "@/components/module-print";
 import { toast } from "@/components/toast";
 import { formatCurrency, formatDate, downloadCSV, cn, daysUntil } from "@/lib/utils";
 import { sellableStock, totalStock, stockValue, stockValueAll, expiryStatus } from "@/lib/stock";
@@ -70,10 +70,48 @@ export default function InventoryPage() {
     toast.success("Exported", "Inventory valuation CSV downloaded");
   }
 
+  function printSummary() {
+    printModuleReport({
+      title: "Inventory Valuation",
+      pharmacyName: settings.pharmacyName,
+      address: settings.address,
+      branchName: settings.branchName,
+      kpis: [
+        ["Inventory Value", fmt(stats.value)],
+        ["Total Units", String(stats.units)],
+        ["Low Stock", String(stats.low)],
+        ["Out of Stock", String(stats.zero)],
+      ],
+      sections: [
+        {
+          heading: "Stock Overview (top 60 by value)",
+          columns: ["Medicine", "Category", "Sellable", "Min Level", "Stock Value", "Status"],
+          right: [2, 3, 4],
+          rows: [...medicines].sort((a, b) => stockValue(b) - stockValue(a)).slice(0, 60).map((m) => {
+            const s = sellableStock(m, today);
+            return [m.name, m.category, s, m.minStockLevel, fmt(Math.round(stockValue(m))),
+              s === 0 ? "Out" : s <= Math.max(m.minStockLevel, settings.lowStockThreshold) ? "Low" : "OK"];
+          }),
+        },
+        {
+          heading: "Movement History (latest 40)",
+          columns: ["Date", "Type", "Reference", "Detail", "Qty"],
+          right: [4],
+          rows: store.movements.slice(0, 40).map((mv) => [
+            formatDate(mv.date.slice(0, 10)), mv.type.replace("_", " "), mv.refNo, mv.medicineName, String(mv.qtyIn ? `+${mv.qtyIn}` : `-${mv.qtyOut}`),
+          ]),
+        },
+      ],
+    });
+  }
+
   return (
     <div>
       <PageHeader title="Inventory" subtitle="Stock positions, batch ledger and valuation"
-        actions={<Button variant="outline" size="sm" onClick={exportValuation}><Download className="h-4 w-4" /> Valuation CSV</Button>} />
+        actions={<>
+          <Button variant="outline" size="sm" onClick={printSummary}><Printer className="h-4 w-4" /> Print Summary</Button>
+          <Button variant="outline" size="sm" onClick={exportValuation}><Download className="h-4 w-4" /> Valuation CSV</Button>
+        </>} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatCard label="Inventory Value" value={fmt(stats.value)} icon={<Boxes className="h-5 w-5" />} tone="violet" />
